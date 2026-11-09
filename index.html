@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SubHub — защита проекта</title>
+<style>
+  :root {
+    --bg: #0B0B0F;
+    --surface: #14141A;
+    --surface-2: #1C1C24;
+    --violet: #A78BFA;
+    --violet-strong: #8B5CF6;
+    --text: #F4F3F8;
+    --muted: #9B99A8;
+    --line: rgba(167, 139, 250, 0.16);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+  .deck { position: relative; height: 100vh; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 7vh 10vw;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(14px);
+    transition: opacity .45s ease, transform .45s ease, visibility .45s;
+  }
+  .slide.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  /* subtle aurora glow */
+  .slide::before {
+    content: "";
+    position: absolute;
+    top: -25%; right: -15%;
+    width: 60vw; height: 60vw;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.13) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .slide::after {
+    content: "";
+    position: absolute;
+    bottom: -30%; left: -20%;
+    width: 50vw; height: 50vw;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .slide > * { position: relative; z-index: 1; }
+
+  .kicker {
+    font-size: .85rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--violet);
+    font-weight: 600;
+    margin-bottom: 1.1rem;
+  }
+  h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(2rem, 4.2vw, 3.1rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 2.2rem; }
+  h1 .accent, h2 .accent { color: var(--violet); }
+  .lead { font-size: clamp(1rem, 1.6vw, 1.25rem); color: var(--muted); line-height: 1.65; max-width: 60ch; }
+
+  .cards { display: grid; gap: 1.1rem; margin-top: .5rem; }
+  .cards.c2 { grid-template-columns: repeat(2, 1fr); }
+  .cards.c3 { grid-template-columns: repeat(3, 1fr); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 1.4rem 1.5rem;
+    transition: transform .2s ease, border-color .2s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: rgba(167,139,250,.4); }
+  .card .icon { font-size: 1.6rem; margin-bottom: .7rem; }
+  .card h3 { font-size: 1.05rem; font-weight: 650; margin-bottom: .45rem; }
+  .card p { font-size: .9rem; color: var(--muted); line-height: 1.55; }
+
+  .bignum {
+    font-size: clamp(2.2rem, 4vw, 3.2rem);
+    font-weight: 700;
+    color: var(--violet);
+    line-height: 1;
+    margin-bottom: .55rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  ul.clean { list-style: none; }
+  ul.clean li {
+    position: relative;
+    padding-left: 1.7rem;
+    margin-bottom: .9rem;
+    font-size: clamp(.95rem, 1.5vw, 1.15rem);
+    color: #D9D7E4;
+    line-height: 1.55;
+  }
+  ul.clean li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: .58em;
+    width: .55rem; height: .55rem;
+    border-radius: 50%;
+    background: var(--violet);
+  }
+  ul.clean li b { color: var(--text); }
+
+  .steps { display: flex; flex-direction: column; gap: 1rem; max-width: 62rem; }
+  .step {
+    display: flex; align-items: flex-start; gap: 1.2rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.05rem 1.35rem;
+  }
+  .step .num {
+    flex: 0 0 auto;
+    width: 2.3rem; height: 2.3rem;
+    border-radius: 10px;
+    background: rgba(167,139,250,.14);
+    color: var(--violet);
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .step h3 { font-size: 1rem; font-weight: 650; margin-bottom: .2rem; }
+  .step p { font-size: .88rem; color: var(--muted); line-height: 1.5; }
+
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 1.6rem 1.8rem;
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: clamp(.72rem, 1.15vw, .92rem);
+    line-height: 1.75;
+    white-space: pre;
+    overflow-x: auto;
+    color: #C9C7D6;
+  }
+  .diagram .hl { color: var(--violet); font-weight: 600; }
+  .diagram .dim { color: #77748a; }
+
+  .pill {
+    display: inline-block;
+    background: rgba(167,139,250,.13);
+    border: 1px solid rgba(167,139,250,.3);
+    color: var(--violet);
+    border-radius: 999px;
+    padding: .32rem .85rem;
+    font-size: .82rem;
+    font-weight: 600;
+    margin: 0 .4rem .7rem 0;
+  }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+
+  .footer-note {
+    margin-top: 2.4rem;
+    font-size: .85rem;
+    color: #6E6C7E;
+  }
+
+  /* chrome */
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--violet-strong), var(--violet));
+    width: 0%;
+    transition: width .35s ease;
+    z-index: 50;
+  }
+  .hud {
+    position: fixed;
+    bottom: 1.3rem; right: 1.6rem;
+    display: flex; align-items: center; gap: 1rem;
+    z-index: 50;
+    font-size: .85rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .hud .hint { font-size: .75rem; color: #55536a; }
+  .brand {
+    position: fixed;
+    bottom: 1.3rem; left: 1.6rem;
+    z-index: 50;
+    font-weight: 700;
+    font-size: .95rem;
+    letter-spacing: .02em;
+  }
+  .brand span { color: var(--violet); }
+
+  @media (max-width: 900px) {
+    .cards.c2, .cards.c3, .cols { grid-template-columns: 1fr; }
+    .slide { padding: 6vh 6vw; overflow-y: auto; justify-content: flex-start; padding-top: 10vh; }
+  }
+  @media print {
+    body { overflow: visible; }
+    .slide { position: static; opacity: 1; visibility: visible; transform: none; page-break-after: always; height: 100vh; }
+    .progress, .hud, .brand { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="brand">Sub<span>Hub</span></div>
+<div class="hud">
+  <span class="hint">← → или клик — листать</span>
+  <span id="counter">1 / 12</span>
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1. Титул -->
+  <section class="slide active">
+    <div class="kicker">Защита учебного проекта · 2 курс</div>
+    <h1>Sub<span class="accent">Hub</span></h1>
+    <p class="lead" style="margin-top:1.4rem; font-size:clamp(1.05rem,2vw,1.45rem); color:#C9C7D6;">
+      Веб-приложение для управления подписками: все регулярные платежи —
+      в одном месте, с честным пересчётом в месяц и напоминаниями о продлениях.
+    </p>
+    <div style="margin-top:2.2rem;">
+      <span class="pill">Next.js 16</span><span class="pill">TypeScript</span>
+      <span class="pill">Supabase</span><span class="pill">Tailwind CSS 4</span>
+    </div>
+    <p class="footer-note">Автор: <b style="color:#D9D7E4">Радукан Глеб</b> · Группа: <b style="color:#D9D7E4">ГД25/1</b> · 2026</p>
+  </section>
+
+  <!-- 2. Проблема -->
+  <section class="slide">
+    <div class="kicker">Проблема</div>
+    <h2>Подписки <span class="accent">утекают</span> незаметно</h2>
+    <div class="cards c3" style="max-width:70rem;">
+      <div class="card">
+        <div class="icon">💸</div>
+        <h3>Невидимые траты</h3>
+        <p>Стриминги, SaaS, AI-сервисы, хранилища. Человек не видит общую сумму — каждый платёж приходит отдельно.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⏰</div>
+        <h3>Внезапные списания</h3>
+        <p>Пробный период кончился, автопродление сработало. Почта завалена — календарь не спасает.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🧮</div>
+        <h3>Разные валюты и периоды</h3>
+        <p>Три сервиса по €5 в неделю, два по $12 в год… существующие трекеры не умеют сводить это в «сколько я плачу в месяц».</p>
+      </div>
+    </div>
+    <p class="footer-note">Опросы рынка: сервисы-трекеры либо перегружены корпоративным дизайном, либо навязывают одну валюту.</p>
+  </section>
+
+  <!-- 3. Решение -->
+  <section class="slide">
+    <div class="kicker">Решение</div>
+    <h2>SubHub — <span class="accent">один честный экран</span> ваших расходов</h2>
+    <ul class="clean" style="max-width:60rem;">
+      <li><b>Единая картина</b> — каждый платёж пересчитывается в настоящую месячную сумму (неделя / квартал / год → месяц).</li>
+      <li><b>Каталог Explore</b> — выбираешь сервис из базы, подписка создаётся с предзаполненными ценой и периодом, но свои значения всегда подтверждаешь сам.</li>
+      <li><b>Аналитика</b> — максимальная трата, распределение по категориям, график по месяцам, список ближайших продлений.</li>
+      <li><b>Календарь платежей</b> — месяц целиком, с днями, когда спишутся деньги.</li>
+      <li><b>Напоминания</b> — уведомления о продлении до списания (приложение + планировщик писем).</li>
+      <li><b>Международность с первого дня</b> — несколько валют (ISO 4217), локализованное форматирование чисел и дат.</li>
+    </ul>
+  </section>
+
+  <!-- 4. Стек -->
+  <section class="slide">
+    <div class="kicker">Технологии</div>
+    <h2>Почему такой стек</h2>
+    <div class="cards c2" style="max-width:70rem;">
+      <div class="card">
+        <div class="icon">▲</div>
+        <h3>Next.js 16 (App Router) + React 19</h3>
+        <p>Server Components и Server Actions: данные рендерятся на сервере, клиент получает лёгкий UI. Turbopack собирает проект.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🛡️</div>
+        <h3>TypeScript (strict) + Zod</h3>
+        <p>Строгая типизация всей кодовой базы. Zod валидирует каждый вход на сервере — расчёт на «вежливый клиент» запрещён.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🗄️</div>
+        <h3>Supabase: Postgres + Auth + RLS</h3>
+        <p>Аутентификация по email, изоляция данных на уровне строк (Row Level Security) — каждый пользователь видит только своё.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🎨</div>
+        <h3>Tailwind CSS 4 + shadcn/ui</h3>
+        <p>Фирменная тема «Midnight Violet»: тёмный конкурентный fintech-стиль, один фиолетовый акцент, контраст 7.2:1.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Архитектура -->
+  <section class="slide">
+    <div class="kicker">Архитектура</div>
+    <h2>Модульный монолит: <span class="accent">9 фичевых срезов</span></h2>
+    <div class="cols" style="max-width:74rem;">
+      <div class="diagram">src/
+├─ <span class="hl">app/</span>          <span class="dim"># маршруты — только тонкая композиция</span>
+├─ <span class="hl">features/</span>     <span class="dim"># срезы продукта:</span>
+│   subscriptions   analytics    catalog
+│   upcoming-payments  notifications
+│   billing  payments  auth  overview
+│   ├─ <span class="hl">components/</span> <span class="dim"># UI</span>
+│   ├─ <span class="hl">actions/</span>    <span class="dim"># серверные действия + валидация</span>
+│   ├─ <span class="hl">data/</span>      <span class="dim"># ЕДИСТВЕННЫЙ доступ к Supabase</span>
+│   └─ <span class="hl">public.ts</span>   <span class="dim"># фасад среза</span>
+├─ <span class="hl">lib/</span>          <span class="dim"># деньги, даты, расписание биллинга</span>
+└─ <span class="hl">types/</span>        <span class="dim"># доменные модели</span></div>
+      <div>
+        <ul class="clean">
+          <li><b>Однонаправленные зависимости</b>: app → features → lib. Срезы не лезут во внутренности друг друга — только через фасад <code>public.ts</code>.</li>
+          <li><b>UI не знает про базу</b>: компоненты получают готовые типизированные данные.</li>
+          <li><b>Общая бизнес-логика — в lib</b>: деньги (целые минорные единицы!), расписание продлений, часовые пояса — одна реализация на всё приложение.</li>
+          <li><b>Выгоды</b>: новый экран добавляется без риска сломать платёжный модуль; при росте можно вынести срез в отдельный сервис без переписывания.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Поток данных -->
+  <section class="slide">
+    <div class="kicker">Поток данных</div>
+    <h2>Каждое изменение — <span class="accent">через серверную проверку</span></h2>
+    <div class="diagram" style="max-width:72rem;">Mutation (форма)
+   │
+   ▼
+<span class="hl">Server Action</span> ── Zod-схема ── повторная проверка прав (сессия, НЕ параметр)
+   │
+   ▼
+<span class="hl">features/*/data</span> ── типизированный клиент Supabase
+   │
+   ▼
+<span class="hl">Postgres + RLS</span> ── политика безопасности отрезает чужие строки
+                       даже если запрос составлен неверно</div>
+    <div class="cards c3" style="margin-top:1.6rem; max-width:72rem;">
+      <div class="card">
+        <h3>Сессия верифицируется</h3>
+        <p><code>getClaims()</code> проверяет подпись JWT — а не просто читает cookie.</p>
+      </div>
+      <div class="card">
+        <h3>Секреты — server-only</h3>
+        <p>Service-role ключ зашит за серверный модуль и физически не попадает в браузерный бандл.</p>
+      </div>
+      <div class="card">
+        <h3>Проверено тестами</h3>
+        <p>Отдельный набор тестов пытается читать чужие записи и доказывает, что нельзя.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Что умеет приложение -->
+  <section class="slide">
+    <div class="kicker">Функциональность</div>
+    <h2>Живые экраны на <span class="accent">реальных данных</span> пользователя</h2>
+    <div class="cards c2" style="max-width:72rem;">
+      <div class="card">
+        <div class="icon">➕</div>
+        <h3>Мои подписки</h3>
+        <p>Добавление, редактирование, пауза и отказ. Валюта, период, дата продления, статус. Всё валидируется на сервере.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔍</div>
+        <h3>Explore — каталог сервисов</h3>
+        <p>Поиск, фильтр по категориям, сортировка — всё в URL (<code>?q=&amp;category=&amp;sort=</code>), ссылкой можно поделиться.</p>
+      </div>
+      <div class="card">
+        <div class="icon">📊</div>
+        <h3>Аналитика</h3>
+        <p>Сумма в месяц, топ-категории, динамика, ближайшие списания.</p>
+      </div>
+      <div class="card">
+        <div class="icon">📅</div>
+        <h3>Календарь и напоминания</h3>
+        <p>Сетка месяца с платежами + очередь уведомлений с планировщиком и тестовой отправкой письма.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Тестирование и качество -->
+  <section class="slide">
+    <div class="kicker">Качество</div>
+    <h2>Проверки, которые <span class="accent">нельзя обойти</span></h2>
+    <div class="cards c3" style="max-width:70rem;">
+      <div class="card">
+        <div class="bignum">31</div>
+        <h3>файлов юнит-тестов</h3>
+        <p>Vitest: деньги, пересчёт в месяц, распечатки планов подписок, границы доступа, планировщик напоминаний, миграции SQL.</p>
+      </div>
+      <div class="card">
+        <div class="bignum">4</div>
+        <h3>шлюза перед коммитом</h3>
+        <p>typecheck (tsc strict) → lint (ESLint) → test (Vitest) → build (прод-сборка). Изменение считается готовым, только когда пройдут все четыре.</p>
+      </div>
+      <div class="card">
+        <div class="bignum">0</div>
+        <h3>фальшивых данных</h3>
+        <p>Правило проекта: демо-фикстуры всегда помечены бейджем «Demo» и никогда не выдаются за настоящие платежи или цены.</p>
+      </div>
+    </div>
+    <p class="footer-note">Отдельные тесты проверяют SQL-миграции: наличие RLS-политик, индексов, запреты на перекрёстное чтение.</p>
+  </section>
+
+  <!-- 9. Сложные решения -->
+  <section class="slide">
+    <div class="kicker">Инженерные находки</div>
+    <h2>Что было <span class="accent">нетривиально</span></h2>
+    <ul class="clean" style="max-width:66rem;">
+      <li><b>Деньги — только целые минорные единицы</b> (копейки/центы): никаких дробей и ошибок округления в расчётах.</li>
+      <li><b>Общий движок биллинга</b>, вынесенный в <code>lib/billing-schedule</code> — аналитика, календарь и напоминания считают по одному алгоритму, а не тремя разными.</li>
+      <li><b>Напоминания вне запросов</b>: страницы никогда не отправляют письма. Единственный вход — закрытый по bearer-токену эндпоинт <code>/api/notifications/dispatch</code>, который выполняет идемпотентный «тик»: восстановление после сбоев → планирование → отправка порциями.</li>
+      <li><b>Платёжный шлюз SubHub Pro</b> вынесен в изолированную плоскость: webhook с проверкой подписи (журнал → идемпотентное применение) и сверка состояния по расписанию. Реализован, но «спит» до включения (<code>BILLING_MODE=off</code>) — честнее спящей фичи, чем фейковой.</li>
+      <li><b>Снимки при создании</b> — подписка хранит имя сервиса, тариф и цену на момент добавления; правка каталога никогда не переписывает историю пользователя.</li>
+    </ul>
+  </section>
+
+  <!-- 10. Sprint-трек -->
+  <section class="slide">
+    <div class="kicker">Как это строилось</div>
+    <h2>Шесть спринтов, <span class="accent">каждый — рабочее приложение</span></h2>
+    <div class="steps" style="max-width:70rem;">
+      <div class="step"><div class="num">1</div><div><h3>Интерлюдия</h3><p>Каркас приложения, дизайн-система Midnight Violet, честные заглушенные экраны.</p></div></div>
+      <div class="step"><div class="num">2</div><div><h3>Supabase: аккаунты и данные</h3><p>Регистрация/вход/восстановление пароля, настоящий CRUD подписок за RLS.</p></div></div>
+      <div class="step"><div class="num">3</div><div><h3>Каталог + аналитика</h3><p>Explore с ценами и источниками, сводка трат по категориям и месяцам.</p></div></div>
+      <div class="step"><div class="num">4–5</div><div><h3>История платежей</h3><p>Ручная фиксация прошедших списаний отдельно от плановых.</p></div></div>
+      <div class="step"><div class="num">6</div><div><h3>Напоминания и биллинг-плоскость</h3><p>Очередь уведомлений, фоновый диспетчер, движок Pro-биллинга для будущей монетизации.</p></div></div>
+    </div>
+  </section>
+
+  <!-- 11. Планы -->
+  <section class="slide">
+    <div class="kicker">Дальше</div>
+    <h2>Что <span class="accent">на дорожной карте</span></h2>
+    <div class="cards c3" style="max-width:70rem;">
+      <div class="card">
+        <div class="icon">👥</div>
+        <h3>Семьи</h3>
+        <p>Общий доступ для домохозяйств: «кто за что платит» — вторая целевая аудитория продукта.</p>
+      </div>
+      <div class="card">
+        <div class="icon">📴</div>
+        <h3>Календарь-экспорт</h3>
+        <p>Выгрузка платежей в реальный календарь телефона (iCal), push-напоминания.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔓</div>
+        <h3>Запуск Pro</h3>
+        <p>Включение подготовленной биллинг-плоскости (Stripe) — премиум-подписка на сам SubHub.</p>
+      </div>
+    </div>
+    <p class="footer-note">Принципиально вне скоупа: привязка банковских аккаунтов и автоматическая конвертация валют с живым курсом — отдельные решения с огромными рисками.</p>
+  </section>
+
+  <!-- 12. Финал -->
+  <section class="slide">
+    <div class="kicker">Итоги</div>
+    <h2>Готовый продукт, <span class="accent">а не прототип</span></h2>
+    <ul class="clean" style="max-width:60rem;">
+      <li><b>Рабочее веб-приложение</b>: регистрация, ввод подписок, аналитика, календарь, напоминания, каталог — на реальной базе данных.</li>
+      <li><b>Спроектированная архитектура</b>: 9 изолированных модулей, четкие границы слоёв, общий библиотечный движок.</li>
+      <li><b>Культура качества</b>: 31 файл тестов, четыре обязательные проверки, и правило «не выдавать выдуманные данные за настоящие».</li>
+      <li><b>Защищённые данные</b>: RLS на уровне базы, сессии с подписью, секреты — только на сервере.</li>
+    </ul>
+    <h1 style="margin-top:2.6rem; font-size:clamp(2.2rem,5vw,3.8rem);">Спасибо.<br><span class="accent">Готов к вопросам.</span></h1>
+  </section>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const counter = document.getElementById("counter");
+  const progress = document.getElementById("progress");
+  let i = 0;
+
+  function show(n) {
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle("active", k === n));
+    i = n;
+    counter.textContent = (i + 1) + " / " + slides.length;
+    progress.style.width = ((i) / (slides.length - 1)) * 100 + "%";
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); show(i + 1); }
+    if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(i - 1); }
+    if (e.key === "Home") show(0);
+    if (e.key === "End") show(slides.length - 1);
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("a")) return;
+    show(e.clientX > window.innerWidth / 2 ? i + 1 : i - 1);
+  });
+  let touchX = null;
+  document.addEventListener("touchstart", (e) => touchX = e.touches[0].clientX);
+  document.addEventListener("touchend", (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) show(i + (dx < 0 ? 1 : -1));
+    touchX = null;
+  });
+
+  show(0);
+</script>
+</body>
+</html>
